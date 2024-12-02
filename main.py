@@ -1,7 +1,6 @@
 import os
 import time
 from sys import exit
-from super_chess import *
 CONST=' '
 os.system('cls')
 while type(CONST)!=int:      
