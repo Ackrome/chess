@@ -1215,13 +1215,13 @@ figure_classes = {
     0: zero
 }
 coder = {
-    'pawn_1':   '♙ ',    'pawn_2':   '♟︎ ',
-    'rook_1':   '♖ ',    'rook_2':   '♜ ',
-    'knight_1': '♘ ',    'knight_2': '♞ ',
-    'bishop_1': '♗ ',    'bishop_2': '♝ ',
-    'king_1':   '♔ ',    'king_2':   '♚ ',
-    'queen_1':  '♕ ',    'queen_2':  '♛ ',
-    '0_0':      '  '
+    'pawn_1':   '\u2659',    'pawn_2':   '\u265F',
+    'rook_1':   '\u2656',    'rook_2':   '\u265C',
+    'knight_1': '\u2658',    'knight_2': '\u265E',
+    'bishop_1': '\u2657',    'bishop_2': '\u265D',
+    'king_1':   '\u2654',    'king_2':   '\u265A',
+    'queen_1':  '\u2655',    'queen_2':  '\u265B',
+    '0_0':      ''
 }
 start_positions = tuple([
     tuple(['rook_2', 'knight_2', 'bishop_2',  'queen_2','king_2', 'bishop_2', 'knight_2', 'rook_2']),
@@ -1341,14 +1341,9 @@ class Field():
 
         co_eaten_w=dict(collections.Counter(eaten_w))
         co_eaten_b=dict(collections.Counter(eaten_b))
+        
         if len(predictlist)!=0 or len(eat_predictlist)!=0:
             if color == 1:
-
-                #### Выведем буквы
-
-                print(' '.center(1),end='',)
-                for i in range(len(Alpha)):
-                    print(('\033[33m'+Alpha[i]+'\033[0m').center(11), end='')
                 
                 #### Выведем метку для съеденных фигур
                     

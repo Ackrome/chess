@@ -1,20 +1,7 @@
 import os
 import time
 from sys import exit
-CONST=' '
-os.system('cls')
-while type(CONST)!=int:      
-    try:
-        CONST=int(input('Which game you want to play: EXTENDED CHESS(TYPE 0)  or ORIGINAL CHESS(TYPE 1) or CHECKERS(TYPE 2)? \nSelect the type of chess you wish to play by pressing the appropriate key: '))
-    except:
-        pass
-
-if CONST==1:
-    from models_orig import *
-elif CONST==0:
-    from models_plus import *
-elif CONST==2:
-    from models_checkers import *
+from models_orig import *    
 ### ВАЖНО: 1 - белая фигура; 2 - чёрная фигура; 0 - нет фигуры
 ###################################################################################################
 ### Необходимые переменные
@@ -88,7 +75,7 @@ class Game():
 
         return self.field.logic[data[0]][data[1]].predict(data,eat)
         
-
+# Нужно жестоко менять
     def xod(self,data):
         """
         Executes a move in the game based on the provided data.
@@ -156,8 +143,7 @@ class Game():
                 break
             else:
                 self.check_yes =0
-
-        print(('\033[1m'+self.player_1+' \033[31mvs\033[0m\033[1m '+self.player_2+'\033[0m\n').center(70))
+                
 
         self.field.render(self.play, self.eaten,[[8,8]],[],self.field.predict_danger(old_logic,(self.play)%2+1),vortex_dict.keys(),long_live_the_king)
 
@@ -241,8 +227,6 @@ class Game():
             if self.field.logic[i[0]][i[1]].figure=='king':
                 self.check_yes +=1
 
-        if CONST == 2 and len(self.__predict(tuple([8-int(lotr[3]),Transdict[lotr[2].capitalize()],old_logic,(self.play)%2+1]),1))>=1 and self.success==2:
-            return -2
         
         return -1
 ###################################################################################################
