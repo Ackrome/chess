@@ -1,4 +1,6 @@
 import collections
+from tkinter import *
+import numpy as np
 ###################################################################################################
 ### Класс клетки поля
 ###################################################################################################
@@ -1237,7 +1239,7 @@ start_positions = tuple([
 ### Класс поля
 ###################################################################################################
 class Field():
-    def __init__(self, logic=None):
+    def __init__(self, cell_size,rows,plus,mult,logic=None):
         """
         Initialize a new game field instance.
 
@@ -1251,7 +1253,121 @@ class Field():
         logic : list of lists
             A two-dimensional list representing the game board.
         """
+        self.buttons = []
         self.logic = logic if logic else self.first_generation()
+        
+        self.cell_size=cell_size
+        self.rows = rows
+        self.plus = plus
+        self.mult = mult
+
+        self.selected_buttons = []
+        self.changed_for_move = []
+    
+    def button_click(self,button, position):
+        """Обработчик нажатия кнопки."""
+
+        # Сбрасываем цвет предыдущей кнопки
+        if len(self.selected_buttons):
+            if self.selected_buttons[-1]:
+                self.selected_buttons[-1].configure(bg=self.selected_buttons[-1].default_color)
+        
+        # Устанавливаем цвет текущей кнопки
+        button.configure(bg="yellow")
+        
+        self.selected_buttons.append(button)   
+        
+        
+        return f"{position}"
+    
+    def get_code(arg):
+        return np.vectorize(coder.get)(arg)
+    
+    def initBoard(self):
+        
+        self.root, self.canvas, self.buttons = self.create_chess_board(
+                    cell_size=self.cell_size,
+                    rows = self.rows,
+                    plus = self.plus,
+                    mult = self.mult
+                )
+    
+    def create_chess_board(self,cell_size,rows=8, cols=8,plus=2,mult=1.7, font=None):
+        # Создаем главное окно
+        root = Tk()
+        root.title("Шахматная доска из кнопок")
+
+        # Задаем размеры Canvas
+        canvas_width = (cell_size)*(rows+1+plus) *mult # Шахматная доска 8x8 с размерами клетки 50x50 пикселей
+        canvas_height = (cell_size)*(rows+1+plus)
+
+        canvas = Canvas(root, width=canvas_width, height=canvas_height)
+        canvas.pack()
+
+        # Создаем шахматную доску
+        
+        if font==None:
+            font = ('Times New Roman', int((cell_size)**0.8))
+
+
+        for row in range(rows):
+            self.buttons.append([])
+            for col in range(cols):
+                # Определяем цвет клетки
+                color = "white" if (row + col) % 2 == 0 else "black"
+                
+                position = f"{Alpha[col]}{Beta[row]}"
+                
+                
+                # Создаем кнопку и настраиваем ее
+                btn = Button(
+                    canvas, 
+                    text = self.get_code(start_positions)[row][col],
+                    font=font,
+                    fg="black" if color == "white" else "white",
+                    bg=color, 
+                    activebackground=color,
+                    # Захват кнопки и координат
+                )
+                btn.configure(command=lambda b=btn, pos=position: self.button_click(b, pos))
+                # Сохраняем исходный цвет кнопки
+                btn.default_color = color
+                
+                # Размещаем кнопку на Canvas
+                canvas.create_window((col+plus) * cell_size, (row+plus) * cell_size, 
+                                    window=btn, width=cell_size, height=cell_size)
+                
+                self.buttons[row].append(btn)
+                
+
+                
+        # Добавляем буквенные обозначения (сверху и снизу)
+        for col in range(cols):
+            letter = Alpha[col]
+            canvas.create_text(
+                (col + plus) * cell_size, 1 * cell_size, 
+                text=letter, font=font
+            )
+            canvas.create_text(
+                (col + plus) * cell_size, (rows + plus) * cell_size, 
+                text=letter, font=font
+            )
+        
+        # Добавляем числовые обозначения (слева и справа)
+        for row in range(rows):
+            number = Beta[row]
+            canvas.create_text(
+                1 * cell_size, (row + plus) * cell_size, 
+                text=number, font=font
+            )
+            canvas.create_text(
+                (cols + plus) * cell_size, (row + plus) * cell_size, 
+                text=number, font=font
+            )
+        
+
+        return root, canvas, self.buttons
+
 
     def first_generation(self):
         """
@@ -1263,7 +1379,9 @@ class Field():
         -------
         logic : list of lists
             A two-dimensional list representing the initial state of the game board.
-        """
+        """      
+        
+        
         logic = [[0 for i in range(8)] for j in range(8)] # <=== Логическое представление игрового поля, его модель
 
         for i in range(8):

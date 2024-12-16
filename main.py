@@ -32,7 +32,12 @@ class Game():
             previous_eaten (list): A list to store previous eaten pieces.
         """
 
-        self.field = Field()
+        self.field = Field(
+            cell_size= 40,
+            rows = 8,
+            plus = 2,
+            mult = 1.7
+        )
         self.player_1 = input('Enter the first player: ')
         self.player_2 = input('Enter the second player: ')
         self.success = success
