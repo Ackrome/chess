@@ -1,6 +1,8 @@
 from models import Field, danger_poses_check
 import os
 import random
+import numpy as np
+from tkinter import *
 
 
 ### !!!ВАЖНО: 1 - белая фигура; 2 - чёрная фигура; 0 - нет фигуры
@@ -34,7 +36,86 @@ class Game():
 
     def save(self):
         return Game(self.field.save(), self.c, self.player_1, self.player_2, self.eaten_1.copy(), self.eaten_2.copy())
+    
+###################################################################################################
+### Класс поля
+###################################################################################################
 
+class Field():
+    def __init__(self, logic=None):
+        if logic:
+            self.logic = logic
+        else:
+            self.logic = self.first_generation()
+
+    
+    def first_generation(self):
+        logic = [[0 for i in range(8)] for j in range(8)] # <=== Логическое представление игрового поля, его модель
+
+        for i in range(8):
+            for j in range(8):
+                cell = start_positions[i][j]
+
+                if cell:
+                    logic[i][j] = figure_classes[cell[:-2]](color=int(cell[-1]), x=i, y=j)              
+                
+        return logic
+                
+                
+    def render(self, c: int, p1: str, p2: str, e1: str, e2: str, possible_poses: tuple=(), danger_poses: tuple=()):
+        result = []
+
+        for i in range(8):
+            row = f'|\033[1;36;40m{8-i}  \033[0;37;40m'
+
+            for j in range(8):
+                cll = self.logic[i][j]
+
+                if (i, j) in possible_poses:
+                    cll = possible_to_eat(str(cll).center(2)) if cll else possible('.'.center(2))
+
+                elif (i, j) in danger_poses:
+                    cll = danger(str(cll).center(2))
+                
+                else:
+                    cll = str(cll).center(2) if cll else '.'.center(2)
+
+                row += cll
+            
+            row += f'\033[1;36;40m {8-i}\033[0;37;40m|'
+
+            field.append(row)
+        
+        field.extend(['|' + ' '*21 + '|',
+                    '|\033[1;36;40m   A B C D E F G H   \033[0;37;40m|',
+                    "'"*23])
+        
+        # Статистика
+        stats = ['' for i in range(2)]
+
+        stats.append(f'')
+        stats.append(f'{" "*5}\033[30;2;47m{p1}\033[0;37;40m: {", ".join(e1)}')
+        stats.extend([
+            '',
+            '',
+            '',
+            f'{" "*5}Было сделано ходов: {c}',
+            '',
+            '',
+            '',
+        ])
+        stats.append(f'{" "*5}\033[0;2;40m{p2}\033[0;37;40m: {", ".join(e2)}')
+
+        stats.extend(['' for i in range(len(field)-len(stats))])
+
+        result = [x + y for x, y in zip(field, stats)]
+
+
+        return '\n'.join(result)
+    
+
+    def save(self):
+        return Field([x[::] for x in self.logic][::])
 
 ###################################################################################################
 ### Необходимые функции
@@ -301,4 +382,209 @@ xod(this_game, start_message)
 #     else:
 #         wr_fl = 1
 #         continue
+
+
+import numpy as np
+from tkinter import *
+
+# Разделитель принимаемых функцией xod координат
+separator_coords = ' '
+
+# Список букв для отображения вокруг шахматной доски
+Alpha = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+
+# Список цифр для отображения вокруг шахматной доски
+Beta = ['1', '2', '3', '4', '5', '6', '7', '8']
+
+# Словарь перехода из строчного названия в строчное отображение фигуры unicode
+coder = {
+    'pawn_1': '\u2659', 'pawn_2': '\u265F',
+    'rook_1': '\u2656', 'rook_2': '\u265C',
+    'knight_1': '\u2658', 'knight_2': '\u265E',
+    'bishop_1': '\u2657', 'bishop_2': '\u265D',
+    'king_1': '\u2654', 'king_2': '\u265A',
+    'queen_1': '\u2655', 'queen_2': '\u265B',
+    '0_0': ''
+}
+
+# Двумерный кортеж начальных позиций
+start_positions = tuple([
+    tuple(['rook_2', 'knight_2', 'bishop_2', 'queen_2', 'king_2', 'bishop_2', 'knight_2', 'rook_2']),
+    tuple(['pawn_2' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['pawn_1' for i in range(8)]),
+    tuple(['rook_1', 'knight_1', 'bishop_1', 'queen_1', 'king_1', 'bishop_1', 'knight_1', 'rook_1']),
+])
+
+selected_buttons = [] # История нажатых кнопок
+buttons = [] # Матрица 8 х 8 всех кнопок поля
+eaten_figures = [[],[]] # двумерный список съеденных фигур, вида [e1,e2]
+eat_init = 0 # Показатель инициализации визуализации съеденных фигур
+
+
+def button_click(button, position):
+    """Обработчик нажатия кнопки."""
+    if len(selected_buttons):
+        if selected_buttons[-1]:
+            selected_buttons[-1].configure(bg=selected_buttons[-1].default_color)
+
+    button.configure(bg="yellow")
+    selected_buttons.append(button)
     
+    ######################################################
+    #
+    #
+    #
+    #xod_data = xod(f"{position}")
+    #
+    #
+    #
+    # if eaten_figures == None and eat_init == 0:
+    #       canvas.create_text(
+    #       3* canvas_width / 4, cell_size,
+    #       text=f"eaten figures:", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
+    #       )
+    #       eat_init = 1
+    
+    ######################################################
+    
+
+def get_code(arg):
+    return np.vectorize(coder.get)(arg)
+
+def get_adeq_fig(arg):
+    name_lower = np.vectorize(lambda x: x.name().lower() +'_'+ x.color())
+    return np.vectorize(coder.get)(name_lower(arg))
+
+
+def get_player_names():
+    """Открывает окно для ввода имён игроков."""
+    names = []
+
+    def save_names():
+        names.append(entry_white.get())
+        names.append(entry_black.get())
+        input_window.destroy()
+
+    input_window = Toplevel()
+    input_window.title("Введите имена игроков")
+
+    Label(input_window, text="Игрок 1 (белые):").grid(row=0, column=0, padx=5, pady=5)
+    entry_white = Entry(input_window, width=20)
+    entry_white.grid(row=0, column=1, padx=5, pady=5)
+
+    Label(input_window, text="Игрок 2 (чёрные):").grid(row=1, column=0, padx=5, pady=5)
+    entry_black = Entry(input_window, width=20)
+    entry_black.grid(row=1, column=1, padx=5, pady=5)
+
+    Button(input_window, text="Сохранить", command=save_names).grid(row=2, column=0, columnspan=2, pady=10)
+
+    input_window.wait_window()
+    
+    return names
+
+
+def create_chess_board(cell_size, rows=8, cols=8, plus=2, mult=1.7, font=None):
+    root = Tk()
+    root.title("Шахматная доска из кнопок")
+
+    canvas_width = (cell_size) * (rows + 1 + plus) * mult
+    canvas_height = (cell_size) * (rows + 1 + plus)
+
+    canvas = Canvas(root, width=canvas_width, height=canvas_height)
+    canvas.pack()
+
+    if font is None:
+        font = ('Times New Roman', int((cell_size) ** 0.8))
+
+    # Добавляем имена игроков
+    player_names = get_player_names()
+    
+
+    canvas.create_text(
+        canvas_width / 3, cell_size / 3,
+        text=f"{player_names[0]} (белые)", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
+    )
+    canvas.create_text(
+        canvas_width / 2, cell_size /3,
+        text='vs', font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
+    )
+    canvas.create_text(
+        2* canvas_width / 3, cell_size /3,
+        text=f"{player_names[1]} (чёрные)", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
+    )
+
+    
+
+    # Создаем шахматную доску
+    for row in range(rows):
+        buttons.append([])
+        for col in range(cols):
+            color = "white" if (row + col) % 2 == 0 else "black"
+            position = f"{Alpha[col]}{separator_coords}{Beta[row]}"
+
+            btn = Button(
+                canvas,
+                text=get_code(start_positions)[row][col],
+                font=font,
+                fg="black" if color == "white" else "white",
+                bg=color,
+                activebackground=color,
+            )
+            btn.configure(command=lambda b=btn, pos=position: button_click(b, pos))
+            btn.default_color = color
+
+            canvas.create_window(
+                (col + plus) * cell_size, (row + plus) * cell_size,
+                window=btn, width=cell_size, height=cell_size
+            )
+            buttons[row].append(btn)
+
+    for col in range(cols):
+        letter = Alpha[col]
+        canvas.create_text(
+            (col + plus) * cell_size, 1 * cell_size,
+            text=letter, font=font
+        )
+        canvas.create_text(
+            (col + plus) * cell_size, (rows + plus) * cell_size,
+            text=letter, font=font
+        )
+
+    for row in range(rows):
+        number = Beta[row]
+        canvas.create_text(
+            1 * cell_size, (row + plus) * cell_size,
+            text=number, font=font
+        )
+        canvas.create_text(
+            (cols + plus) * cell_size, (row + plus) * cell_size,
+            text=number, font=font
+        )
+
+
+    return root, canvas, buttons, player_names
+
+
+root, canvas, buttons, player_names = create_chess_board(
+    cell_size=40,
+    rows=8,
+    plus=2,
+    mult=1.7
+)
+
+##########################################################################################
+#
+#
+#
+# Init Game
+#
+#
+#
+
+##########################################################################################
+
+root.mainloop()

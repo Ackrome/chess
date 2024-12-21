@@ -1,6 +1,3 @@
-import tkinter as tk
-
-
 ### !!!ВАЖНО: методы хода фигур возвращают кортеж вида (a, b, c), где:
 ### a - результат хода: a=0 - неудачный ход, a=1 - фигура походила, a=2 - фигура съела
 ### b - новый logic
@@ -118,9 +115,8 @@ class pawn(figure):
         
         return (0, 0, 0) # 0 => Player entered wrong positions
     
-
     def __str__(self):
-        return 'P' if self.color==1 else 'p'
+        return str(coder[self.name().lower()+'_'+str(self.color)])  
     
 
     def name(self):
@@ -205,8 +201,7 @@ class rook(figure):
     
 
     def __str__(self):
-        return 'R' if self.color==1 else 'r'
-    
+        return str(coder[self.name().lower()+'_'+str(self.color)])      
 
     def name(self):
         return 'Rook'
@@ -266,11 +261,10 @@ class knight(figure):
     
 
     def __str__(self):
-        return 'H' if self.color==1 else 'h'
-    
+        return str(coder[self.name().lower()+'_'+str(self.color)])      
 
     def name(self):
-        return 'Horse'
+        return 'Knight'
     
 
 ###################################################################################################
@@ -350,7 +344,7 @@ class bishop(figure):
     
 
     def __str__(self):
-        return 'B' if self.color==1 else 'b'
+        return str(coder[self.name().lower()+'_'+str(self.color)])      
     
 
     def name(self):
@@ -410,7 +404,7 @@ class king(figure):
     
 
     def __str__(self):
-        return 'K' if self.color==1 else 'k'
+        return str(coder[self.name().lower()+'_'+str(self.color)])      
     
 
     def name(self):
@@ -536,7 +530,7 @@ class queen(figure):
     
 
     def __str__(self):
-        return 'Q' if self.color==1 else 'q'
+        return str(coder[self.name().lower()+'_'+str(self.color)])      
     
 
     def name(self):
@@ -608,108 +602,3 @@ def possible_to_eat(s: str) -> str:
 
 def danger(s: str) -> str:
     return '\033[0;2;41m'+s+'\033[0;37;40m'
-
-
-
-###################################################################################################
-### Класс поля
-###################################################################################################
-
-class Field():
-    def __init__(self, logic=None):
-        self.buttons = [[] for i in range(8)]
-        if logic:
-            self.logic = logic
-        else:
-            self.logic = self.first_generation()
-
-    
-    def first_generation(self, cell_size=50, border=50):
-        logic = [[0 for i in range(8)] for j in range(8)] # <=== Логическое представление игрового поля, его модель
-
-        for i in range(8):
-            for j in range(8):
-                cell = start_positions[i][j]
-
-                if cell:
-                    logic[i][j] = figure_classes[cell[:-2]](color=int(cell[-1]), x=i, y=j)
-                    
-        root = tk.Tk()
-        root.title('Chess')
-        
-        width = cell_size*(8+6)+border
-        height = cell_size*8+border
-        canvas = tk.Canvas(root, width=width, height=height)
-        canvas.pack()
-        
-        for row in range(8):
-            for col in range(8):
-                back_col = 'white' if (row+col)%2 else 'black'
-                for_col = 'color' if (row+col)%2 else 'white'
-                
-                this_btn = tk.Button(
-                    canvas, text=str(logic[row][col]), fg=for_col, bg=back_col
-                )
-                
-                self.buttons[row].append(this_btn)
-                
-                
-                
-
-        return logic
-                
-                
-    def render(self, c: int, p1: str, p2: str, e1: str, e2: str, possible_poses: tuple=(), danger_poses: tuple=()):
-        result = []
-
-        for i in range(8):
-            row = f'|\033[1;36;40m{8-i}  \033[0;37;40m'
-
-            for j in range(8):
-                cll = self.logic[i][j]
-
-                if (i, j) in possible_poses:
-                    cll = possible_to_eat(str(cll).center(2)) if cll else possible('.'.center(2))
-
-                elif (i, j) in danger_poses:
-                    cll = danger(str(cll).center(2))
-                
-                else:
-                    cll = str(cll).center(2) if cll else '.'.center(2)
-
-                row += cll
-            
-            row += f'\033[1;36;40m {8-i}\033[0;37;40m|'
-
-            field.append(row)
-        
-        field.extend(['|' + ' '*21 + '|',
-                    '|\033[1;36;40m   A B C D E F G H   \033[0;37;40m|',
-                    "'"*23])
-        
-        # Статистика
-        stats = ['' for i in range(2)]
-
-        stats.append(f'')
-        stats.append(f'{" "*5}\033[30;2;47m{p1}\033[0;37;40m: {", ".join(e1)}')
-        stats.extend([
-            '',
-            '',
-            '',
-            f'{" "*5}Было сделано ходов: {c}',
-            '',
-            '',
-            '',
-        ])
-        stats.append(f'{" "*5}\033[0;2;40m{p2}\033[0;37;40m: {", ".join(e2)}')
-
-        stats.extend(['' for i in range(len(field)-len(stats))])
-
-        result = [x + y for x, y in zip(field, stats)]
-
-
-        return '\n'.join(result)
-    
-
-    def save(self):
-        return Field([x[::] for x in self.logic][::])
