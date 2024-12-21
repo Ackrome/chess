@@ -541,37 +541,6 @@ class queen(figure):
 ### Необходимые переменные
 ###################################################################################################
 
-coder = {
-    'pawn_1':   'P',    'pawn_2':   'p',
-    'rook_1':   'R',    'rook_2':   'r',
-    'knight_1': 'H',    'knight_2': 'h',
-    'bishop_1': 'B',    'bishop_2': 'b',
-    'king_1':   'K',    'king_2':   'k',
-    'queen_1':  'Q',    'queen_2':  'q',
-    '0_0': '.',
-}
-
-figure_classes = {
-    'pawn': pawn,
-    'rook': rook,
-    'knight': knight,
-    'bishop': bishop,
-    'king': king,
-    'queen': queen,
-}
-
-start_positions = tuple([
-    ('rook_2', 'knight_2', 'bishop_2',  'queen_2', 'king_2','bishop_2', 'knight_2', 'rook_2'),
-    # tuple(['pawn_2' for i in range(8)]),
-    tuple([0 for i in range(8)]),
-    tuple([0 for i in range(8)]),
-    tuple([0 for i in range(8)]),
-    tuple([0 for i in range(8)]),
-    tuple([0 for i in range(8)]),
-    tuple([0 for i in range(8)]),
-    # tuple(['pawn_1' for i in range(8)]),
-    ('rook_1', 'knight_1', 'bishop_1', 'queen_1', 'king_1', 'bishop_1', 'knight_1', 'rook_1'),
-])
     
 ###################################################################################################
 ### Необходимые функции

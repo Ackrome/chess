@@ -1,4 +1,4 @@
-from models import Field, danger_poses_check
+from models import *
 import os
 import random
 import numpy as np
@@ -314,9 +314,9 @@ def xod(game: Game, message: str=start_message, message_2: str=start_message_2, 
 ### Игровой процесс
 ###################################################################################################
 
-this_game = Game()
+#this_game = Game()
 
-xod(this_game, start_message)
+#xod(this_game, start_message)
 
 
 
