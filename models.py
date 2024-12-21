@@ -18,7 +18,6 @@ class figure():
 
 
 ###################################################################################################
-
 class pawn(figure):
     def probable_poses_check(self, logic: list) -> tuple:
         cur_x = self.x
@@ -558,16 +557,3 @@ def danger_poses_check(x, y, logic) -> tuple:
                         result.append((cell.x, cell.y))
 
         return tuple(result)
-
-
-def possible(s: str) -> str:
-    return '\033[30;30;42m'+s+'\033[0;37;40m'
-
-
-def possible_to_eat(s: str) -> str:
-    return '\033[0;2;43m'+s+'\033[0;37;40m'
-
-
-
-def danger(s: str) -> str:
-    return '\033[0;2;41m'+s+'\033[0;37;40m'

@@ -1,140 +1,125 @@
 from models import *
-import os
-import random
 import numpy as np
 from tkinter import *
-
-
+from collections import Counter
 ### !!!ВАЖНО: 1 - белая фигура; 2 - чёрная фигура; 0 - нет фигуры
-
-
-
-
 ###################################################################################################
 ### Необходимые переменные
 ###################################################################################################
 
-xods = [] # <= Сюда будут сохраняться все ходы в виде копий объекта Game для возможности отката
+# Состояние игры: берём фигуру или ставим
+is_pick = 1
 
-start_message = '\nВыберите фигуру для хода, введя координаты в фомате *буква* *пробел* *цифра*.\nОтмените предыдущий ход, введя /back.\nПроверьте угрозы, введя /check *координаты фигуры*\nСдайтесь, введи /endgame\n'
-start_message_2 = '\nВыберите одну из подсвеченных клеток для хода, введя координаты в фомате *буква* *пробел* *цифра*.\nОтмените выбор фигуры, введя /back.\n'
+# Количество ходов
+n_moves = 1
 
+# Разделитель принимаемых функцией xod координат
+separator_coords = ' '
 
-###################################################################################################
-### Класс игры
-###################################################################################################
+# Список букв для отображения вокруг шахматной доски
+Alpha = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-class Game(): 
-    def __init__(self, field=None, c=None, player_1=-100, player_2=-100, eaten_1=None, eaten_2=None):
-        self.field = field if field else Field()
-        self.c = c if c else 0 # число ходов
-        self.eaten_1 = eaten_1 if eaten_1 else []
-        self.eaten_2 = eaten_2 if eaten_2 else []
+# Список цифр для отображения вокруг шахматной доски
+Beta = ['1', '2', '3', '4', '5', '6', '7', '8']
 
+# Словарь перехода из строчного названия в строчное отображение фигуры unicode
+coder = {
+    'pawn_1': '\u2659', 'pawn_2': '\u265F',
+    'rook_1': '\u2656', 'rook_2': '\u265C',
+    'knight_1': '\u2658', 'knight_2': '\u265E',
+    'bishop_1': '\u2657', 'bishop_2': '\u265D',
+    'king_1': '\u2654', 'king_2': '\u265A',
+    'queen_1': '\u2655', 'queen_2': '\u265B',
+    '0_0': ''
+}
 
-        (self.player_1, self.player_2) = (self.player_1, self.player_2) if random.randint(0, 1) else (self.player_2, self.player_1)
+# Двумерный кортеж начальных позиций
+start_positions = tuple([
+    tuple(['rook_2', 'knight_2', 'bishop_2', 'queen_2', 'king_2', 'bishop_2', 'knight_2', 'rook_2']),
+    tuple(['pawn_2' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['0_0' for i in range(8)]),
+    tuple(['pawn_1' for i in range(8)]),
+    tuple(['rook_1', 'knight_1', 'bishop_1', 'queen_1', 'king_1', 'bishop_1', 'knight_1', 'rook_1']),
+])
 
-    def save(self):
-        return Game(self.field.save(), self.c, self.player_1, self.player_2, self.eaten_1.copy(), self.eaten_2.copy())
-    
-###################################################################################################
-### Класс поля
-###################################################################################################
+# Словарь классов фигур 
+figure_classes = {
+    'pawn': pawn,
+    'rook': rook,
+    'knight': knight,
+    'bishop': bishop,
+    'king': king,
+    'queen': queen,
+}
 
-class Field():
-    def __init__(self, logic=None):
-        if logic:
-            self.logic = logic
-        else:
-            self.logic = self.first_generation()
+selected_buttons = [] # История нажатых кнопок
+buttons = [] # Матрица 8 х 8 всех кнопок поля
+eaten_figures = [[],[]] # двумерный список съеденных фигур, вида [e1,e2]
+eat_init = 0 # Показатель инициализации визуализации съеденных фигур
 
-    
-    def first_generation(self):
-        logic = [[0 for i in range(8)] for j in range(8)] # <=== Логическое представление игрового поля, его модель
-
-        for i in range(8):
-            for j in range(8):
-                cell = start_positions[i][j]
-
-                if cell:
-                    logic[i][j] = figure_classes[cell[:-2]](color=int(cell[-1]), x=i, y=j)              
-                
-        return logic
-                
-                
-    def render(self, c: int, p1: str, p2: str, e1: str, e2: str, possible_poses: tuple=(), danger_poses: tuple=()):
-        result = []
-
-        for i in range(8):
-            row = f'|\033[1;36;40m{8-i}  \033[0;37;40m'
-
-            for j in range(8):
-                cll = self.logic[i][j]
-
-                if (i, j) in possible_poses:
-                    cll = possible_to_eat(str(cll).center(2)) if cll else possible('.'.center(2))
-
-                elif (i, j) in danger_poses:
-                    cll = danger(str(cll).center(2))
-                
-                else:
-                    cll = str(cll).center(2) if cll else '.'.center(2)
-
-                row += cll
-            
-            row += f'\033[1;36;40m {8-i}\033[0;37;40m|'
-
-            field.append(row)
-        
-        field.extend(['|' + ' '*21 + '|',
-                    '|\033[1;36;40m   A B C D E F G H   \033[0;37;40m|',
-                    "'"*23])
-        
-        # Статистика
-        stats = ['' for i in range(2)]
-
-        stats.append(f'')
-        stats.append(f'{" "*5}\033[30;2;47m{p1}\033[0;37;40m: {", ".join(e1)}')
-        stats.extend([
-            '',
-            '',
-            '',
-            f'{" "*5}Было сделано ходов: {c}',
-            '',
-            '',
-            '',
-        ])
-        stats.append(f'{" "*5}\033[0;2;40m{p2}\033[0;37;40m: {", ".join(e2)}')
-
-        stats.extend(['' for i in range(len(field)-len(stats))])
-
-        result = [x + y for x, y in zip(field, stats)]
+cell_size=40 # Размер стороны клетки
+rows=8 # Количество рядов
+plus=2 # Смещение всего поля (НЕ МЕНЯТЬ)
+mult=1.7 # Мультипликатор размера
+created_eaten = [] # Объекты выведенных съеденных фигур
 
 
-        return '\n'.join(result)
-    
+logic = [[0 for i in range(8)] for j in range(8)] # <=== Логическое представление игрового поля, его модель
+for i in range(8):
+    for j in range(8):
+        cell = start_positions[i][j]
 
-    def save(self):
-        return Field([x[::] for x in self.logic][::])
+        if cell[-1]!='0':
+            logic[i][j] = figure_classes[cell[:-2]](color=int(cell[-1]), x=i, y=j)
 
+# ID объектов canvas, где содержатся отображаемые имена игроков
+p1 = ''
+p2 = ''
+
+x_offset = 0
+y_offset = 0
+window_width = 0
+window_height = 0
+
+canvas = []
+root = []
 ###################################################################################################
 ### Необходимые функции
 ###################################################################################################
     
 def get_poses(inpt):
+    """
+    Converts user input into chessboard coordinates.
+
+    :param inpt: Input string in the format "letter number" (e.g., "A 1").
+    :return: A tuple (x, y) where x is the row index and y is the column index.
+    :raises Exception: If the input format is invalid.
+    """
     y, x = [t for t in inpt.split() if t]
 
     if len(y)!=1 or len(x)!=1:
         raise Exception
 
     y = y.upper()
-    x = 8-int(x)
+    x = int(x)-1
     y = 'ABCDEFGH'.find(y)
 
     return (x, y)
 
 
 def is_check_or_checkmate(logic) -> tuple:
+    """
+    Determines if a player is in check or checkmate.
+
+    :param logic: The logical representation of the chessboard.
+    :return: A tuple (color, state, danger_positions):
+        - color: 1 for white, 2 for black, 0 for no checkmate.
+        - state: 1 for check, 2 for checkmate, 0 for no danger.
+        - danger_positions: List of positions threatening the king, if applicable.
+    """
     # Поиск королей
     kings = [0]*3
     for x in range(8):
@@ -174,294 +159,225 @@ def is_check_or_checkmate(logic) -> tuple:
 
     return (0, 0, 0)
     
+picked = ''
+# Если берем фигуру
+def pick(inpt):
+    """
+    Handles the logic for selecting a chess piece to move.
 
-def xod(game: Game, message: str=start_message, message_2: str=start_message_2, special: str='', danger_poses: tuple=()):
-    checkmate = is_check_or_checkmate(game.field.logic)
-
-    if checkmate[1]==1 and game.c%2!=checkmate[0]%2:
-        message = f'\n{[0, game.player_1, game.player_2][checkmate[0]]}, ваш король находится под шахом!\n' + message
-
-        danger_poses = tuple(list(danger_poses) + list(checkmate[2]))
+    :param inpt: Input string with the coordinates of the piece to pick.
+    """
+    global n_moves
+    global logic
+    global is_pick
+    global picked
+    global root
+    global canvas
     
-    elif checkmate[1]==2 and game.c%2!=checkmate[0]%2:
-        message = f'\n{[game.player_1, game.player_2][checkmate[0]]}, ваш король находится под матом!\n' + message
-
-    os.system('cls')
-
-    print(f'{game.player_1 if not game.c%2 else game.player_2} - ваш ход!\n')
-
-    print(game.field.render(game.c, game.player_1, game.player_2, game.eaten_1, game.eaten_2, danger_poses=danger_poses))
-          
-    print(message)
-
-    inpt = special if special else input('Ваше действие: ')
-
-    # Сдаться
-    if inpt=='/end game':
-        print(f'Игрок {game.player_2 if game.c%2 else game.player_1} выиграл!')
+    x, y = get_poses(inpt)
     
-    # Откат хода
-    if inpt=='/back':
-        confirmation = input('Вы уверены (Yes/No)?: ')
+    if logic[x][y] and logic[x][y].color%2!=n_moves%2:
+        return
+    
+    checkmate = is_check_or_checkmate(logic)
+    figure = logic[x][y]
+    try:
+        possible_poses = figure.probable_poses_check(logic)
+        if not len(possible_poses):
+            return
+        danger_poses = danger_poses_check(x, y, logic)
+    except:
+        return
 
-        if confirmation=='Yes':
-            if xods:
-                xod(xods[-1], start_message)
+    if checkmate[1]==1 and n_moves%2!=checkmate[0]%2:
 
-            else:
-                msg = '\nВы уже на ходе 0!\n' + start_message
-                xod(game, msg)
+
+        danger_poses = list(checkmate[2])
+        render(danger=danger_poses)
+    
+    elif checkmate[1]==2 and n_moves%2!=checkmate[0]%2:
+        return
+
+    is_pick = 0
+    picked = inpt
+    render(possible_poses, danger_poses)
+            
+            
+# Если ставим уже взятую фигуру:
+def place(inpt):
+    """
+    Handles the logic for placing a selected chess piece on the board.
+
+    :param inpt: Input string with the coordinates where the piece will be placed.
+    """
+    global n_moves
+    global logic
+    global is_pick
+    global picked
+    global canvas
+    global root
+    x, y = get_poses(picked)
+    new_x, new_y = get_poses(inpt)
+    possible_poses = logic[x][y].probable_poses_check(logic)
+            
+    if (new_x, new_y) not in possible_poses:
+        return
+
+    result = logic[x][y].move(logic, new_x, new_y, possible_poses)
+
+    if result[0]==1:
+        new_logic = result[1]
+
+        if is_check_or_checkmate(new_logic)[0]%2!=n_moves%2 and is_check_or_checkmate(new_logic)[1]==1:
+            return
+            
+        logic = new_logic
+        n_moves += 1
+        is_pick = 1
+        show_player_who(canvas,n_moves)
+        render()
         
-        else:
-            xod(game, start_message)
+    
+    elif result[0]==2:
+        new_logic = result[1]
+        
+        if is_check_or_checkmate(new_logic)[0]%2!=n_moves%2 and is_check_or_checkmate(new_logic)[1]==1:
+            return
 
-    # Проверка угроз
-    if inpt[:6]=='/check': 
-        msg = '\nВы неправильно ввели координаты!\n' + start_message
-        try:
-            x_d, y_d = get_poses(inpt[7:])
-
-            if game.field.logic[x_d][y_d].color%2==game.c%2:
-                msg = '\nВыберите фигуру своего цвета!\n' + start_message
-                xod(game, msg)
-
-        except Exception:
-            xod(game, msg)
-
-        danger_poses = danger_poses_check(x_d, y_d, game.field.logic)
-
-        xod(game, danger_poses=danger_poses)
-
-    # Обычный ход
+        eaten_figures[n_moves%2].append(f'{result[2].name().lower()}_{result[2].color}')
+    
+        logic = new_logic
+        n_moves += 1
+        is_pick = 1
+        show_player_who(canvas,n_moves)
+        render()
+    
     else:
-        msg = '\nВы неправильно ввели координаты!\n' + start_message
-        try:
-            x, y = get_poses(inpt)
-
-            if game.field.logic[x][y].color%2==game.c%2:
-                msg = '\nВыберите фигуру своего цвета!\n' + start_message
-                xod(game, msg)
-
-        except Exception:
-            xod(game, msg)
-        
-        figure = game.field.logic[x][y]
-
-        possible_poses = figure.probable_poses_check(game.field.logic)
-
-        os.system('cls')
-        print(f'{game.player_1 if not game.c%2 else game.player_2} - ваш ход!\n')
-        game.field.render(game.c, game.player_1, game.player_2, game.eaten_1, game.eaten_2, possible_poses)
-        print(message_2)
-
-        inpt_ = input('Ваше действие: ')
-
-        # Отмена выбора фигуры
-        if inpt_=='/back':
-            xod(game)
-
-        # Обычный ход
-        else:
-            msg_2 = '\nВы неправильно ввели координаты!\n' + start_message_2
-            try:
-                new_x, new_y = get_poses(inpt_)
-            except Exception:
-                xod(game, message_2=msg_2, special=inpt)
-
-            msg_2 = '\nВы выбрали невозможную для хода клетку!\n' + start_message_2
-            if (new_x, new_y) not in possible_poses:
-                xod(game, message_2=msg_2, special=inpt)
-        
-            result = game.field.logic[x][y].move(game.field.logic, new_x, new_y, possible_poses)
-
-            if result[0]==1:
-                xods.append(game.save())
-
-                new_logic = result[1]
-
-                if is_check_or_checkmate(new_logic)[0]%2!=game.c%2 and is_check_or_checkmate(new_logic)[1]==1:
-                    msg_2 = '\nВы не можете поставить своего короля под угрозу!\n' + start_message
-                    xod(game, message_2=msg_2, special=inpt)
-
-                game.field.logic = new_logic
-                game.c += 1
-                xod(game)
-            
-            elif result[0]==2:
-                xods.append(game.save())
-
-                new_logic = result[1]
-                
-                if is_check_or_checkmate(new_logic)[0]%2!=game.c%2 and is_check_or_checkmate(new_logic)[1]==1:
-                    msg_2 = '\nВы не можете поставить своего короля под угрозу!\n' + start_message
-                    xod(game, message_2=msg_2, special=inpt)
-
-                if game.c%2:
-                    game.eaten_2.append(result[2].name())
-
-                else:
-                    game.eaten_1.append(result[2].name())
-                game.field.logic = new_logic
-                game.c += 1
-                xod(game)
-            
-            else:
-                msg = '\nНевозможно сделать такой ход\n' + start_message
-                xod(game, message=msg)
-        
-
+        return
 ###################################################################################################
-### Игровой процесс
+### Отображение
 ###################################################################################################
-
-#this_game = Game()
-
-#xod(this_game, start_message)
-
-
-
-
-# c = 1
-# wr_fl = 0
-# while True:
-#     os.system('cls')
-
-#     print(f'{this_game.player_1 if c%2 else this_game.player_2} - ваш ход!')
-
-#     print(this_game.field.render())
-
-#     positions = [x for x in input(f'{this_game.player_1 if c%2 else this_game.player_2}, {"Вы неправильно ввели координаты, попробуйте ещё раз" if wr_fl else "Введите координаты хода"}: ').split() if x]
-    
-#     if len(positions)!=4:
-#         wr_fl = 1
-#         continue
-
-#     positions[0], positions[2] = positions[0].lower(), positions[2].lower()
-
-#     if ord(positions[0]) in range(97, 123) and ord(positions[1]) in range(48, 58) and ord(positions[2]) in range(97, 123) and ord(positions[3]) in range(48, 58):
-#         # Перевод в логическое понимание для работы с координатами
-#         positions = [
-#             8 - int(positions[1]),
-#             ord(positions[0])-97,
-#             8 - int(positions[3]),
-#             ord(positions[2])-97,
-#         ]
-
-#         cll = this_game.field.logic[positions[0]][positions[1]]
-
-#         if cll.figure_color!=c%2+2*(not c%2):
-#             wr_fl = 1
-#             continue
-        
-#         new_x = positions[2]
-#         new_y = positions[3]
-
-#         if cll.figure=='pawn':
-#             result = figure_move['pawn_'+str(cll.figure_color)](this_game.field.logic, cll, new_x, new_y)
-#         else:
-#             result = figure_move[cll.figure](this_game.field.logic, cll, new_x, new_y)
-
-#         if result[0]==1:
-#             this_game.field.logic = result[1]
-#             c += 1
-#             wr_fl = 0
-#         elif result[0]==2:
-#           this_game.field.logic = result[1]
-#           if c%1:
-#               this_game.eaten_1.append(result[2])
-#           else:
-#               this_game.eaten_2.append(result[2])
-#           c += 1
-#           wr_fl = 0
-#         
-#           else:
-#             wr_fl = 1
-#             continue
-
-    
-#     else:
-#         wr_fl = 1
-#         continue
-
-
-import numpy as np
-from tkinter import *
-
-# Разделитель принимаемых функцией xod координат
-separator_coords = ' '
-
-# Список букв для отображения вокруг шахматной доски
-Alpha = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-
-# Список цифр для отображения вокруг шахматной доски
-Beta = ['1', '2', '3', '4', '5', '6', '7', '8']
-
-# Словарь перехода из строчного названия в строчное отображение фигуры unicode
-coder = {
-    'pawn_1': '\u2659', 'pawn_2': '\u265F',
-    'rook_1': '\u2656', 'rook_2': '\u265C',
-    'knight_1': '\u2658', 'knight_2': '\u265E',
-    'bishop_1': '\u2657', 'bishop_2': '\u265D',
-    'king_1': '\u2654', 'king_2': '\u265A',
-    'queen_1': '\u2655', 'queen_2': '\u265B',
-    '0_0': ''
-}
-
-# Двумерный кортеж начальных позиций
-start_positions = tuple([
-    tuple(['rook_2', 'knight_2', 'bishop_2', 'queen_2', 'king_2', 'bishop_2', 'knight_2', 'rook_2']),
-    tuple(['pawn_2' for i in range(8)]),
-    tuple(['0_0' for i in range(8)]),
-    tuple(['0_0' for i in range(8)]),
-    tuple(['0_0' for i in range(8)]),
-    tuple(['0_0' for i in range(8)]),
-    tuple(['pawn_1' for i in range(8)]),
-    tuple(['rook_1', 'knight_1', 'bishop_1', 'queen_1', 'king_1', 'bishop_1', 'knight_1', 'rook_1']),
-])
-
-selected_buttons = [] # История нажатых кнопок
-buttons = [] # Матрица 8 х 8 всех кнопок поля
-eaten_figures = [[],[]] # двумерный список съеденных фигур, вида [e1,e2]
-eat_init = 0 # Показатель инициализации визуализации съеденных фигур
-
-
 def button_click(button, position):
-    """Обработчик нажатия кнопки."""
+    """
+    Handles the button click event for the chessboard.
+
+    :param button: The button object that was clicked.
+    :param position: The position on the board associated with the button.
+    """
+    global is_pick
+    global eat_init
     if len(selected_buttons):
         if selected_buttons[-1]:
             selected_buttons[-1].configure(bg=selected_buttons[-1].default_color)
-
+    
     button.configure(bg="yellow")
     selected_buttons.append(button)
     
-    ######################################################
-    #
-    #
-    #
-    #xod_data = xod(f"{position}")
-    #
-    #
-    #
-    # if eaten_figures == None and eat_init == 0:
-    #       canvas.create_text(
-    #       3* canvas_width / 4, cell_size,
-    #       text=f"eaten figures:", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
-    #       )
-    #       eat_init = 1
+    if is_pick:
+        pick(position)
+    else:
+        place(position)
+        
+    if eaten_figures != [[],[]] and eat_init == 0:
+           canvas.create_text(
+           3* ((cell_size) * (rows + 1 + plus) * mult) / 4, int(cell_size*1.03),
+           text=f"Съеденные фигуры:", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
+           )
+           show_eaten_figures(canvas)
+           eat_init = 1
+           
+    elif eat_init == 1:
+        show_eaten_figures(canvas)
+
     
-    ######################################################
+def show_eaten_figures(canvas):
+    """
+    Displays the pieces that have been captured on the canvas.
+
+    :param canvas: The canvas object where captured pieces are shown.
+    """
+    for i in created_eaten:
+        canvas.delete(i)
+        
+    for i in range(len(eaten_figures)):
+        count = dict(Counter(eaten_figures[i]))
+        for j in range(len(count.keys())):
+            
+            created_eaten.append(canvas.create_text(
+                (5+2*i)*((cell_size) * (rows + 1 + plus) * mult)//8,(1.3*j+3)*cell_size // 2,
+                text=f"{get_code(list(count.keys())[j])} x {count[list(count.keys())[j]]}", font=('Times New Roman', int((cell_size) ** 0.8)), fill="black"
+            ))
     
 
+def show_player_who(canvas,n_moves):
+    """
+    Highlights the current player's turn on the canvas.
+
+    :param canvas: The canvas object where player information is displayed.
+    :param n_moves: The number of moves made so far.
+    """
+    if n_moves%2:
+        canvas.itemconfig(1, fill="green")
+        canvas.itemconfig(3, fill="black")
+    else:
+        canvas.itemconfig(3, fill="green")
+        canvas.itemconfig(1, fill="black")
+
+def show_notification(root, message, width=window_width, height=100, font=('Times New Roman', 14), delay=3000, color = 'black', x_shift = x_offset+9, y_shift = y_offset-100):
+    """
+    Creates a notification popup with a given message.
+
+    :param root: The root Tkinter object.
+    :param message: The notification text.
+    :param width: Width of the notification window.
+    :param height: Height of the notification window.
+    :param font: Font of the notification text.
+    :param delay: Duration (in milliseconds) before the notification disappears.
+    :param color: Text color.
+    :param x_shift: X-coordinate offset for positioning the window.
+    :param y_shift: Y-coordinate offset for positioning the window.
+    """
+    
+    # Для всех уведомлений width=window_width,x_shift=x_offset+9,y_shift = y_offset-100
+    notification = Toplevel(root)
+    notification.title("Уведомление")
+    notification.geometry(f"{width}x{height}+{x_shift}+{y_shift}")
+    notification.overrideredirect(True)  # Убираем рамки окна
+    
+    # Добавляем текст уведомления
+    label = Label(notification, text=message, font=font, wraplength=width - 20, justify="center", fg = color)
+    label.pack(expand=True, fill="both", padx=10, pady=10)
+    
+    # Автоматическое закрытие уведомления через delay миллисекунд
+    notification.after(delay, notification.destroy)
+
+
 def get_code(arg):
+    """
+    Maps chess piece codes to their Unicode representation.
+
+    :param arg: The piece code.
+    :return: The Unicode character representing the chess piece.
+    """
     return np.vectorize(coder.get)(arg)
 
 def get_adeq_fig(arg):
+    """
+    Maps logical representations of pieces to their Unicode representation.
+
+    :param arg: The logical representation of a chess piece.
+    :return: The Unicode character representing the chess piece.
+    """
     name_lower = np.vectorize(lambda x: x.name().lower() +'_'+ x.color())
     return np.vectorize(coder.get)(name_lower(arg))
 
 
 def get_player_names():
-    """Открывает окно для ввода имён игроков."""
+    """
+    Opens a window to input the names of the players.
+
+    :return: A list containing the names of the players [white_player, black_player].
+    """
     names = []
 
     def save_names():
@@ -469,8 +385,23 @@ def get_player_names():
         names.append(entry_black.get())
         input_window.destroy()
 
-    input_window = Toplevel()
+    input_window = Tk()
     input_window.title("Введите имена игроков")
+    
+    # Размер окна
+    window_width = int(250)
+    window_height = int(100)
+
+    # Получение размера экрана
+    screen_width = input_window.winfo_screenwidth()
+    screen_height = input_window.winfo_screenheight()
+
+    # Расчет координат для центрирования окна
+    x_offset = (screen_width - window_width) // 2
+    y_offset = (screen_height - window_height) // 2
+
+    # Установка размера и позиции окна
+    input_window.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")  
 
     Label(input_window, text="Игрок 1 (белые):").grid(row=0, column=0, padx=5, pady=5)
     entry_white = Entry(input_window, width=20)
@@ -482,29 +413,63 @@ def get_player_names():
 
     Button(input_window, text="Сохранить", command=save_names).grid(row=2, column=0, columnspan=2, pady=10)
 
-    input_window.wait_window()
+    input_window.mainloop()
     
     return names
 
+def create_chess_board(cell_size=cell_size, rows=rows, cols=rows, plus=plus, mult=mult, font=None, x_shift=100):
+    """
+    Creates and displays a graphical chessboard using Tkinter.
 
-def create_chess_board(cell_size, rows=8, cols=8, plus=2, mult=1.7, font=None):
-    root = Tk()
-    root.title("Шахматная доска из кнопок")
-
-    canvas_width = (cell_size) * (rows + 1 + plus) * mult
-    canvas_height = (cell_size) * (rows + 1 + plus)
-
-    canvas = Canvas(root, width=canvas_width, height=canvas_height)
-    canvas.pack()
-
+    :param cell_size: The size of each cell in pixels.
+    :param rows: Number of rows on the chessboard.
+    :param cols: Number of columns on the chessboard.
+    :param plus: Padding for the chessboard.
+    :param mult: Multiplier for scaling the board size.
+    :param font: Font for displaying text on the board.
+    :param x_shift: Horizontal offset for the board's position.
+    """
+    global x_offset
+    global y_offset
+    global window_width
+    global window_height
+    
     if font is None:
         font = ('Times New Roman', int((cell_size) ** 0.8))
 
     # Добавляем имена игроков
     player_names = get_player_names()
     
+    canvas_width = (cell_size) * (rows + 1 + plus) * mult
+    canvas_height = (cell_size) * (rows + 1 + plus)
+    
+    root = Tk()
+    root.title("Шахматная доска из кнопок")
+    
+    # Размер окна
+    window_width = int(canvas_width)
+    window_height = int(canvas_height)
 
-    canvas.create_text(
+    # Получение размера экрана
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    # Расчет координат для центрирования окна
+    x_offset = (screen_width - window_width) // 2
+    y_offset = (screen_height - window_height) // 2
+
+    # Установка размера и позиции окна
+    root.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")    
+
+    canvas = Canvas(root, width=canvas_width, height=canvas_height )
+    canvas.pack()
+    
+    # Для всех уведомлений width=window_width,x_shift=x_offset+9,y_shift = y_offset-100
+    
+    # Приветствие
+    show_notification(root,f"Добро пожаловать, {player_names[0]}(белые) и {player_names[1]}(черные) ! Игра начинается.", delay=5000,width=window_width,x_shift=x_offset+9,y_shift = y_offset-100)
+
+    p1 = canvas.create_text(
         canvas_width / 3, cell_size / 3,
         text=f"{player_names[0]} (белые)", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
     )
@@ -512,12 +477,12 @@ def create_chess_board(cell_size, rows=8, cols=8, plus=2, mult=1.7, font=None):
         canvas_width / 2, cell_size /3,
         text='vs', font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
     )
-    canvas.create_text(
+    p2 = canvas.create_text(
         2* canvas_width / 3, cell_size /3,
         text=f"{player_names[1]} (чёрные)", font=('Times New Roman', int((cell_size) ** 0.75)), fill="black"
     )
 
-    
+    show_player_who(canvas, n_moves)
 
     # Создаем шахматную доску
     for row in range(rows):
@@ -568,23 +533,27 @@ def create_chess_board(cell_size, rows=8, cols=8, plus=2, mult=1.7, font=None):
 
     return root, canvas, buttons, player_names
 
+def render(possible=(), danger=()):
+    global logic
+    global buttons
+    
+    for x in range(len(logic)):
+        for y in range(len(logic[x])):
+            cell = logic[x][y]
+            new_text = f'{cell.name().lower()}_{cell.color}' if cell else '0_0'
+            buttons[x][y].configure(text=coder[new_text])
+            if (x, y) in possible:
+                if cell:
+                    buttons[x][y].configure(bg='yellow')
+                else:
+                    buttons[x][y].configure(bg='green')
+            
+            elif (x, y) in danger:
+                buttons[x][y].configure(bg='red')
+                
+            else:
+                buttons[x][y].configure(bg=buttons[x][y].default_color)
 
-root, canvas, buttons, player_names = create_chess_board(
-    cell_size=40,
-    rows=8,
-    plus=2,
-    mult=1.7
-)
-
-##########################################################################################
-#
-#
-#
-# Init Game
-#
-#
-#
-
-##########################################################################################
+root, canvas, buttons, player_names = create_chess_board()
 
 root.mainloop()
